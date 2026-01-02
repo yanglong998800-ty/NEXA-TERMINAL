@@ -206,13 +206,40 @@
             }
         }
 
-        function send() {
-            const input = document.getElementById('cmd-in');
-            const box = document.getElementById('chat-box');
-            if(!input.value) return;
-            box.innerHTML += `<p class="text-blue-400 mt-2">> ${input.value}</p>`;
-            setTimeout(() => { box.innerHTML += `<p class="text-gray-500">System: Command processed.</p>`; box.scrollTop = box.scrollHeight; }, 300);
-            input.value = "";
+        async function send() {
+    const input = document.getElementById('cmd-in');
+    const box = document.getElementById('chat-box');
+    const command = input.value.trim();
+    
+    if(!command) return;
+
+    // 1. 在屏幕上显示你的指令
+    box.innerHTML += `<p class="text-blue-400 mt-2">▶ ${command}</p>`;
+    const loadingId = "load-" + Date.now();
+    box.innerHTML += `<p id="${loadingId}" class="text-gray-500 italic"># Nexa 正在思考中...</p>`;
+    box.scrollTop = box.scrollHeight;
+    input.value = "";
+
+    try {
+        // 2. 发送请求到你的 Python 后端
+        const response = await fetch(`${API_BASE_URL}/chat`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: command })
+        });
+        
+        const data = await response.json();
+        
+        // 3. 显示 AI 真正的回复
+        const loader = document.getElementById(loadingId);
+        if(loader) loader.remove();
+        box.innerHTML += `<p class="text-gray-200 bg-blue-900/20 p-2 rounded mt-1 border-l-2 border-blue-500">${data.reply}</p>`;
+    } catch (e) {
+        const loader = document.getElementById(loadingId);
+        if(loader) loader.innerText = "# 错误: 无法连接到后端，请检查 Python 是否运行。";
+    }
+    box.scrollTop = box.scrollHeight;
+}
         }
 
         async function approve() {
