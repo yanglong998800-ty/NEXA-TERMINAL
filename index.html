@@ -206,15 +206,39 @@
             }
         }
 
-        function send() {
-            const input = document.getElementById('cmd-in');
-            const box = document.getElementById('chat-box');
-            if(!input.value) return;
-            box.innerHTML += `<p class="text-blue-400 mt-2">> ${input.value}</p>`;
-            setTimeout(() => { box.innerHTML += `<p class="text-gray-500">System: Command processed.</p>`; box.scrollTop = box.scrollHeight; }, 300);
-            input.value = "";
-        }
+        async function send() {
+    const input = document.getElementById('cmd-in');
+    const box = document.getElementById('chat-box');
+    const command = input.value.trim();
+    if(!command) return;
 
+    // 1. 立即在窗口显示你输入的话
+    box.innerHTML += `<p class="text-blue-400 mt-2">▶ ${command}</p>`;
+    const loadingId = "load-" + Date.now();
+    box.innerHTML += `<p id="${loadingId}" class="text-gray-500 italic"># Nexa 思考中...</p>`;
+    box.scrollTop = box.scrollHeight;
+    input.value = "";
+
+    try {
+        // 2. 关键：向你本地电脑的 3000 端口请求对话
+        const response = await fetch(`${API_BASE_URL}/chat`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: command })
+        });
+        const data = await response.json();
+        
+        // 3. 显示你电脑 index.js 里写的回复
+        const loader = document.getElementById(loadingId);
+        if(loader) loader.remove();
+        box.innerHTML += `<p class="text-gray-200 bg-blue-900/20 p-2 rounded mt-1 border-l-2 border-blue-500">${data.reply}</p>`;
+    } catch (e) {
+        // 4. 如果连接失败的提示
+        const loader = document.getElementById(loadingId);
+        if(loader) loader.innerText = "# 错误: 无法连接大脑，请确认 Ngrok 开启且地址正确。";
+    }
+    box.scrollTop = box.scrollHeight;
+}
         async function approve() {
             if(!confirm("Lock this trauma memory into core?")) return;
             try { await fetch(`${API_BASE_URL}/approve_trauma`, { method: 'POST' }); alert("Synced."); } catch(e) { alert("Failed."); }
