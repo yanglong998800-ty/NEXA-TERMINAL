@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NEXA TERMINAL 5.8 | 终极版</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { background: #050505; color: #00ff41; font-family: 'Courier New', monospace; overflow-x: hidden; }
+        .terminal-box { border: 1px solid #00ff41; background: rgba(0, 255, 65, 0.05); box-shadow: inset 0 0 15px rgba(0, 255, 65, 0.1); }
+        .glitch { animation: glitch 1s linear infinite; }
+        @keyframes glitch { 2%, 64% { transform: translate(2px,0) skew(0deg); } 4%, 60% { transform: translate(-2px,0) skew(0deg); } 62% { transform: translate(0,0) skew(5deg); } }
+        .news-item { border-left: 2px solid #00ff41; padding: 8px; margin-bottom: 8px; background: rgba(0, 255, 65, 0.02); }
+        .news-item:hover { background: rgba(0, 255, 65, 0.1); border-left: 4px solid #00ff41; }
+        .status-safe { color: #4ade80; text-shadow: 0 0 8px #4ade80; font-weight: bold; }
+        .status-danger { color: #f87171; text-shadow: 0 0 8px #f87171; font-weight: bold; animation: glitch 0.5s infinite; }
+        .status-potential { color: #facc15; text-shadow: 0 0 8px #facc15; font-weight: bold; animation: blink 0.8s infinite; }
+        @keyframes blink { 50% { opacity: 0.2; } }
+        input:focus { box-shadow: 0 0 10px rgba(0, 255, 65, 0.5); }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-thumb { background: #00ff41; }
+        .sparkline-container { width: 60px; height: 25px; }
+    </style>
+</head>
+<body class="p-2 md:p-4">
+
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4 text-[10px] md:text-xs">
+        <div class="terminal-box p-2">CORE: <span class="text-white font-bold tracking-widest">NEXA_V5.8</span></div>
+        <div class="terminal-box p-2 uppercase">Index: <span id="ptsd-val" class="text-white text-xs">SCANNING...</span></div>
+        <div class="terminal-box p-2 overflow-hidden truncate">Link: <span id="addr" class="text-yellow-400 font-mono">--</span></div>
+        <div class="terminal-box p-2 text-center text-white font-bold text-xs" id="clock">00:00:00</div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="md:col-span-1 terminal-box p-3 h-[620px] flex flex-col">
+            <h3 class="border-b border-[#00ff41] mb-2 pb-1 font-bold flex justify-between text-sm">
+                <span>MARKET_PULSE</span>
+                <span class="text-[10px] opacity-50 uppercase">Live</span>
+            </h3>
+            <input type="text" id="search" placeholder="FILTER SYMBOLS..." class="bg-black border border-[#00ff41] w-full p-2 mb-2 text-sm outline-none text-[#00ff41]">
+            <div id="prices" class="flex-1 overflow-y-auto space-y-1 text-xs pr-1"></div>
+            <div class="mt-2 h-32 w-full border-t border-[#00ff4122] pt-2">
+                <canvas id="volume-chart"></canvas>
+            </div>
+        </div>
+
+        <div class="md:col-span-2 terminal-box p-3 h-[620px] flex flex-col">
+            <h3 class="border-b border-[#00ff41] mb-2 pb-1 font-bold text-sm">GLOBAL_INTEL_STREAM</h3>
+            <div id="news-feed" class="flex-1 overflow-y-auto pr-2">
+                <p class="text-xs italic opacity-50 animate-pulse">> 正在接入全球加密资讯节点...</p>
+            </div>
+        </div>
+
+        <div class="md:col-span-1 terminal-box p-3 h-[620px] flex flex-col">
+            <h3 class="border-b border-[#00ff41] mb-2 pb-1 font-bold text-sm">NEXA_LOGIC_CORE</h3>
+            <div class="bg-black p-3 mb-3 text-[11px] h-2/3 overflow-y-auto border border-[#00ff4133] font-mono leading-relaxed text-[#00ff41]" id="chat-box">
+                <p class="text-gray-500">> NEXA 内核已加载...</p>
+                <p class="text-gray-500">> 正在同步 Ngrok 隧道...</p>
+             </div>
+            <div class="flex gap-1 mb-4">
+                <input type="text" id="cmd-in" placeholder="INPUT COMMAND..." class="flex-1 bg-black border border-[#00ff41] p-2 text-xs outline-none">
+                <button onclick="send()" class="bg-[#00ff41] text-black px-4 py-1 text-xs font-extrabold hover:bg-white transition">EXEC</button>
+            </div>
+            <div class="mt-auto border-t border-[#00ff4133] pt-3">
+                <div class="grid grid-cols-2 gap-2 text-[10px] mb-3">
+                    <div class="bg-zinc-900 p-2 border border-zinc-700 uppercase">Pos_Limit: <span id="v-pos" class="text-white font-bold">--</span></div>
+                    <div class="bg-zinc-900 p-2 border border-zinc-700 uppercase">Stop_Loss: <span id="v-sl" class="text-white font-bold">--</span></div>
+                </div>
+                <button onclick="approve()" class="w-full bg-red-600/20 border border-red-600 text-red-500 py-3 text-[11px] font-bold hover:bg-red-600 hover:text-white transition uppercase tracking-widest">
+                    Confirm Trauma Memory
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ★★★ 这里是我根据你截图里的 Ngrok 地址帮你填好的 ★★★
+        const API_BASE_URL = "https://augustus-hydrotropic-intestinally.ngrok-free.dev";
+
+        setInterval(() => { document.getElementById('clock').innerText = new Date().toLocaleTimeString(); }, 1000);
+
+        async function fetchNews() {
+            try {
+                const res = await fetch('https://min-api.cryptocompare.com/data/v2/news/?lang=EN');
+                const data = await res.json();
+                const newsBox = document.getElementById('news-feed');
+                newsBox.innerHTML = "";
+                data.Data.slice(0, 12).forEach(item => {
+                    newsBox.innerHTML += `<div class="news-item">
+                        <div class="flex justify-between text-[9px] opacity-50 mb-1"><span>${item.source.toUpperCase()}</span><span>${new Date(item.published_on*1000).toLocaleTimeString()}</span></div>
+                        <a href="${item.url}" target="_blank" class="text-xs hover:text-white font-bold leading-tight block">${item.title}</a>
+                    </div>`;
+                });
+            } catch (e) {}
+        }
+
+        let volumeChart;
+        let sparklines = {};
+
+        async function updateMarket() {
+            try {
+                const res = await fetch('https://api.binance.com/api/v3/ticker/24hr');
+                const data = await res.json();
+                const list = document.getElementById('prices');
+                const search = document.getElementById('search').value.toUpperCase();
+                const filtered = data.filter(i => i.symbol.endsWith('USDT') && i.symbol.includes(search)).sort((a,b) => b.quoteVolume - a.quoteVolume).slice(0, 10);
+                list.innerHTML = "";
+                const labels = [];
+                const volumes = [];
+                filtered.forEach(i => {
+                    const change = parseFloat(i.priceChangePercent);
+                    const color = change >= 0 ? 'text-green-500' : 'text-red-500';
+                    list.innerHTML += `<div class="flex justify-between items-center border-b border-[#00ff4111] py-2">
+                        <div class="flex-1"><span class="font-bold">${i.symbol.replace('USDT','')}</span><p class="${color} text-[10px]">${change > 0 ? '+' : ''}${change}%</p></div>
+                        <div class="sparkline-container mr-2"><canvas id="spark-${i.symbol}"></canvas></div>
+                        <div class="text-right w-20"><p class="font-mono text-white text-xs">${parseFloat(i.lastPrice).toFixed(i.lastPrice < 1 ? 6 : 2)}</p></div>
+                    </div>`;
+                     labels.push(i.symbol.replace('USDT',''));
+                    volumes.push(parseFloat(i.quoteVolume));
+                    setTimeout(() => initSparkline(i.symbol, parseFloat(i.lastPrice)), 50);
+                });
+                updateVolumeChart(labels, volumes);
+            } catch (e) {}
+        }
+
+        function initSparkline(symbol, price) {
+            const el = document.getElementById(`spark-${symbol}`);
+            if(!el) return;
+            const ctx = el.getContext('2d');
+            if (!sparklines[symbol]) {
+                sparklines[symbol] = new Chart(ctx, {
+                    type: 'line',
+                    data: { labels: [0], datasets: [{ data: [price], borderColor: '#00ff41', borderWidth: 1, pointRadius: 0, fill: false }] },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { display: false } } }
+                });
+            } else {
+                let chart = sparklines[symbol];
+                chart.data.datasets[0].data.push(price);
+                chart.data.labels.push(chart.data.labels.length);
+                if (chart.data.datasets[0].data.length > 15) { chart.data.datasets[0].data.shift(); chart.data.labels.shift(); }
+                chart.update('none');
+            }
+        }
+
+        function updateVolumeChart(labels, volumes) {
+            const ctx = document.getElementById('volume-chart').getContext('2d');
+            if (volumeChart) {
+                volumeChart.data.labels = labels;
+                volumeChart.data.datasets[0].data = volumes;
+                volumeChart.update('none');
+            } else {
+                volumeChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: { labels: labels, datasets: [{ data: volumes, backgroundColor: '#00ff4188', borderColor: '#00ff41', borderWidth: 1 }] },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { display: false }, x: { ticks: { color: '#00ff41', font: { size: 8 } } } } }
+                });
+            }
+        }
+
+        async function syncNexa() {
+            try {
+                const res = await fetch(`${API_BASE_URL}/status`);
+                const data = await res.json();
+                const ptsdEl = document.getElementById('ptsd-val');
+                ptsdEl.innerText = data.isSafe ? "STATUS: SAFE" : (data.potential_trauma ? "INDEX: POTENTIAL" : "INDEX: DANGER");
+                ptsdEl.className = data.isSafe ? "status-safe text-xs" : (data.potential_trauma ? "status-potential text-xs" : "status-danger text-xs");
+                document.getElementById('addr').innerText = API_BASE_URL.split('//')[1];
+                document.getElementById('v-pos').innerText = (data.config.trading_params.max_position_size * 100).toFixed(0) + "%";
+                document.getElementById('v-sl').innerText = (data.config.trading_params.stop_loss_pct * 100).toFixed(1) + "%";
+            } catch(e) {
+                document.getElementById('ptsd-val').innerText = "OFFLINE";
+                document.getElementById('ptsd-val').className = "text-gray-600 text-xs";
+            }
+        }
+
+        function send() {
+            const input = document.getElementById('cmd-in');
+            const box = document.getElementById('chat-box');
+            if(!input.value) return;
+            box.innerHTML += `<p class="text-white mt-2">> ${input.value}</p>`;
+            setTimeout(() => {
+                box.innerHTML += `<p class="text-[#00ff41]">Nexa: 已建立实时链路，正在刷新参数...</p>`;
+                box.scrollTop = box.scrollHeight;
+            }, 300);
+            input.value = "";
+        }
+
+        async function approve() {
+            if(!confirm("确认同步创伤记忆？")) return;
+            try { await fetch(`${API_BASE_URL}/approve_trauma`, { method: 'POST' }); alert("同步成功！"); } catch(e) { alert("连接失败"); }
+        }
+
+        setInterval(updateMarket, 3500);
+        setInterval(fetchNews, 60000);
+        setInterval(syncNexa, 3000);
+        updateMarket(); fetchNews(); syncNexa();
+    </script>
+</body>
+</html>
